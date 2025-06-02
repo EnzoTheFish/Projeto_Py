@@ -8,10 +8,22 @@ tela = None
 canvas = None
 item_atual = None
 aleatorio = 'a'
+entrada = None
 
-def adicionar_tarefa():
-    item = canvas.create_text(100, 100, text='Tarefa', font=("Arial", 14), anchor="nw", tags="tarefa") 
-    return item
+def caixa_de_texto():
+    global entrada
+    entrada = tk.Entry(tela, font=("Arial", 14))
+    entrada.pack(pady=10)
+    entrada.focus_set()
+    entrada.bind("<Return>", adicionar_tarefa)
+    
+def adicionar_tarefa(evento=None):
+    global entrada
+    nome= entrada.get()
+    if nome:
+     item = canvas.create_text(100, 100, text=nome, font=("Arial", 14), anchor="nw", tags="tarefa") 
+     entrada.destroy()
+     entrada = None
 
 def adicionar_imagem():
     caminho = filedialog.askopenfilename(filetypes=[("Imagens", "*.png;*.jpg;*.jpeg")])
@@ -46,7 +58,7 @@ def criar_interface():
     canvas.pack(fill="both", expand=True)
 
     
-    btn_tarefa = tk.Button(tela, text="Adicionar Tarefa", command=adicionar_tarefa)
+    btn_tarefa = tk.Button(tela, text="Adicionar Tarefa", command=caixa_de_texto,)
     btn_tarefa.pack(side="left")
 
     btn_imagem = tk.Button(tela, text="Adicionar Imagem", command=adicionar_imagem)
