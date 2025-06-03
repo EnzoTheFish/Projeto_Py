@@ -10,6 +10,14 @@ item_atual = None
 aleatorio = 'a'
 entrada = None
 
+def apagar_item ():
+    global item_atual
+    if item_atual:
+        canvas.delete(item_atual)
+        if item_atual in imagens_carregadas:
+            del imagens_carregadas[item_atual]
+        item_atual = None
+
 def caixa_de_texto():
     global entrada
     entrada = tk.Entry(tela, font=("Arial", 14))
@@ -63,6 +71,9 @@ def criar_interface():
 
     btn_imagem = tk.Button(tela, text="Adicionar Imagem", command=adicionar_imagem)
     btn_imagem.pack(side="left")
+    
+    btn_remover = tk.Button(tela, text="Remover Item", command=apagar_item)
+    btn_remover.pack(side="left")
 
    
     canvas.bind("<Button-1>", iniciar_movimento)
