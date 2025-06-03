@@ -45,20 +45,30 @@ def adicionar_tarefa_com_checkbox(evento=None):
     global entrada
     nome = entrada.get()
     if nome:
-            x, y = 100, 100
-            caixa = canvas.create_rectangle(x, y, x+20, y+20, outline="black", fill="white", tags="checkbox")
-            texto = canvas.create_text(x + 30, y, text=nome, font=("Arial", 14), anchor="nw", tags="tarefa")
+        x, y = 100, 100 
 
-    tarefas.append({
+        tag_tarefa = f"tarefa_{len(tarefas)}" 
+
+        caixa = canvas.create_rectangle(x, y, x + 20, y + 20, outline="black", fill="white", tags=(tag_tarefa, "checkbox"))
+        texto = canvas.create_text(x + 30, y, text=nome, font=("Arial", 14), anchor="nw", tags=(tag_tarefa, "tarefa"))
+
+        tarefas.append({
             "caixa": caixa,
             "texto": texto,
-            "marcado": False
+            "marcado": False,
+            "tag": tag_tarefa
         })
 
-    canvas.tag_bind(caixa, "<Button-1>", lambda e, c=caixa: alternar_checkbox(c))
-    entrada.destroy()
-    entrada = None
+        canvas.tag_bind(caixa, "<Button-1>", lambda e, c=caixa: alternar_checkbox(c))
+        canvas.tag_bind(texto, "<Button-1>", lambda e, tag=tag_tarefa: selecionar_conjunto(tag))
 
+        entrada.destroy()
+        entrada = None
+
+def selecionar_conjunto(tag):
+    global item_atual
+    item_atual = tag
+    
 def alternar_checkbox(caixa_id):
     for tarefa in tarefas:
         if tarefa["caixa"] == caixa_id:
@@ -84,11 +94,26 @@ def iniciar_movimento(evento):
     global item_atual
     itens = canvas.find_closest(evento.x, evento.y)
     if itens:
-        item_atual = itens[0]
+        id_item = itens[0]
+        for tarefa in tarefas:
+            if tarefa["caixa"] == id_item or tarefa["texto"] == id_item:
+                item_atual = tarefa["tag"]
+                return
+        item_atual = id_item
 
 def mover_item(evento):
     if item_atual:
-        canvas.coords(item_atual, evento.x, evento.y)
+        if isinstance(item_atual, str):
+             itens = canvas.find_withtag(item_atual)
+             caixa = canvas.bbox(itens[0]) 
+             if caixa:
+                x_antigo, y_antigo = caixa[0], caixa[1]
+                dx = evento.x - x_antigo
+                dy = evento.y - y_antigo
+                for item in itens:
+                    canvas.move(item, dx, dy)
+        else:
+            canvas.coords(item_atual, evento.x, evento.y)
 
 def criar_interface():
     global tela, canvas
