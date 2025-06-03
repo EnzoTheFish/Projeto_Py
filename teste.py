@@ -9,6 +9,7 @@ canvas = None
 item_atual = None
 aleatorio = 'a'
 entrada = None
+tarefas = []
 
 def apagar_item ():
     global item_atual
@@ -32,6 +33,39 @@ def adicionar_tarefa(evento=None):
      item = canvas.create_text(100, 100, text=nome, font=("Arial", 14), anchor="nw", tags="tarefa") 
      entrada.destroy()
      entrada = None
+     
+def texto_checkbox():
+    global entrada
+    entrada = tk.Entry(tela, font=("Arial", 14))
+    entrada.pack(pady=10)
+    entrada.focus_set()
+    entrada.bind("<Return>", adicionar_tarefa_com_checkbox)
+     
+def adicionar_tarefa_com_checkbox(evento=None):
+    global entrada
+    nome = entrada.get()
+    if nome:
+            x, y = 100, 100
+            caixa = canvas.create_rectangle(x, y, x+20, y+20, outline="black", fill="white", tags="checkbox")
+            texto = canvas.create_text(x + 30, y, text=nome, font=("Arial", 14), anchor="nw", tags="tarefa")
+
+    tarefas.append({
+            "caixa": caixa,
+            "texto": texto,
+            "marcado": False
+        })
+
+    canvas.tag_bind(caixa, "<Button-1>", lambda e, c=caixa: alternar_checkbox(c))
+    entrada.destroy()
+    entrada = None
+
+def alternar_checkbox(caixa_id):
+    for tarefa in tarefas:
+        if tarefa["caixa"] == caixa_id:
+            tarefa["marcado"] = not tarefa["marcado"]
+            cor = "green" if tarefa["marcado"] else "white"
+            canvas.itemconfig(caixa_id, fill=cor)
+            
 
 def adicionar_imagem():
     caminho = filedialog.askopenfilename(filetypes=[("Imagens", "*.png;*.jpg;*.jpeg")])
@@ -74,6 +108,9 @@ def criar_interface():
     
     btn_remover = tk.Button(tela, text="Remover Item", command=apagar_item)
     btn_remover.pack(side="left")
+    
+    btn_imagem = tk.Button(tela, text="Checkbox", command=texto_checkbox)
+    btn_imagem.pack(side="left")
 
    
     canvas.bind("<Button-1>", iniciar_movimento)
