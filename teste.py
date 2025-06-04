@@ -12,15 +12,19 @@ entrada = None
 tarefas = []
 desenho = False
 linha = None
+acoes = []
 
 def alternar_desenho ():
     global desenho
     desenho = not desenho
+    cursor = "pencil" if desenho else "arrow"
+    canvas.config(cursor=cursor)
     
 def iniciar_linha (evento):
     global linha
     if desenho:
         linha = canvas.create_line(evento.x, evento.y, evento.x, evento.y, fill="red", width=2, capstyle="round", smooth=True, tags="desenho")
+        acoes.append(("criar", linha))
 
 def desenhar_linha (evento):
     global linha
@@ -56,6 +60,7 @@ def adicionar_tarefa(evento=None):
     nome= entrada.get()
     if nome:
      item = canvas.create_text(100, 100, text=nome, font=("Arial", 14), anchor="nw", tags="tarefa") 
+     acoes.append(("criar", item))
      entrada.destroy()
      entrada = None
      
@@ -76,6 +81,7 @@ def adicionar_tarefa_com_checkbox(evento=None):
 
         caixa = canvas.create_rectangle(x, y, x + 20, y + 20, outline="black", fill="white", tags=(tag_tarefa, "checkbox"))
         texto = canvas.create_text(x + 30, y, text=nome, font=("Arial", 14), anchor="nw", tags=(tag_tarefa, "tarefa"))
+        acoes.append(("criar_grupo", [caixa, texto]))
 
         tarefas.append({
             "caixa": caixa,
@@ -112,33 +118,62 @@ def adicionar_imagem():
     imagem_tk = ImageTk.PhotoImage(imagem)
 
     item = canvas.create_image(200, 200, image=imagem_tk, anchor="nw", tags="imagem")
+    acoes.append(("criar", item))
     imagens_carregadas[item] = imagem_tk  
     return item
 
 def iniciar_movimento(evento):
-    global item_atual
-    itens = canvas.find_closest(evento.x, evento.y)
-    if itens:
-        id_item = itens[0]
-        for tarefa in tarefas:
-            if tarefa["caixa"] == id_item or tarefa["texto"] == id_item:
-                item_atual = tarefa["tag"]
-                return
-        item_atual = id_item
+     global item_atual, linha
+     if desenho:
+        linha = canvas.create_line(evento.x, evento.y, evento.x, evento.y, fill="red", width=2, capstyle="round", smooth=True, tags="desenho")
+        item_atual = None
+     else:
+        itens = canvas.find_closest(evento.x, evento.y)
+        if itens:
+            id_item = itens[0]
+            for tarefa in tarefas:
+                if tarefa["caixa"] == id_item or tarefa["texto"] == id_item:
+                    item_atual = tarefa["tag"]
+                    return
+            item_atual = id_item
 
 def mover_item(evento):
-    if item_atual:
+     global linha
+     if desenho:
+        if linha:
+            coords = canvas.coords(linha)
+            coords.extend([evento.x, evento.y])
+            canvas.coords(linha, *coords)
+     elif item_atual:
         if isinstance(item_atual, str):
-             itens = canvas.find_withtag(item_atual)
-             caixa = canvas.bbox(itens[0]) 
-             if caixa:
-                x_antigo, y_antigo = caixa[0], caixa[1]
-                dx = evento.x - x_antigo
-                dy = evento.y - y_antigo
-                for item in itens:
-                    canvas.move(item, dx, dy)
+            itens = canvas.find_withtag(item_atual)
+            if itens:
+                caixa = canvas.bbox(itens[0])
+                if caixa:
+                    x_antigo, y_antigo = caixa[0], caixa[1]
+                    dx = evento.x - x_antigo
+                    dy = evento.y - y_antigo
+                    for item in itens:
+                        canvas.move(item, dx, dy)
         else:
             canvas.coords(item_atual, evento.x, evento.y)
+            
+def desfazer_acao(event=None):
+    if not acoes:
+        return
+
+    acao = acoes.pop()
+
+    tipo, item = acao
+
+    if tipo == "criar":
+        canvas.delete(item)
+        if item in imagens_carregadas:
+            del imagens_carregadas[item]
+    elif tipo == "criar_grupo":
+        for i in item:
+            canvas.delete(i)          
+
 
 def criar_interface():
     global tela, canvas
@@ -168,9 +203,8 @@ def criar_interface():
    
     canvas.bind("<Button-1>", iniciar_movimento)
     canvas.bind("<B1-Motion>", mover_item)
-    canvas.bind("<ButtonPress-1>", iniciar_linha)
-    canvas.bind("<B1-Motion>", desenhar_linha)
-    canvas.bind("<ButtonRelease-1>", finalizar_linha)
+    canvas.bind("<ButtonRelease-1>", lambda e: None if not desenho else finalizar_linha(e))
+    tela.bind("<Control-z>", desfazer_acao)
 
     tela.mainloop()
 
