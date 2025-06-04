@@ -10,6 +10,31 @@ item_atual = None
 aleatorio = 'a'
 entrada = None
 tarefas = []
+desenho = False
+linha = None
+
+def alternar_desenho ():
+    global desenho
+    desenho = not desenho
+    
+def iniciar_linha (evento):
+    global linha
+    if desenho:
+        linha = canvas.create_line(evento.x, evento.y, evento.x, evento.y, fill="red", width=2, capstyle="round", smooth=True, tags="desenho")
+
+def desenhar_linha (evento):
+    global linha
+    if desenho and linha :
+        coords = canvas.coords(linha)
+        coords.extend([evento.x, evento.y])
+        canvas.coords(linha, *coords)
+        
+def finalizar_linha(evento):
+    global linha_atual
+    if desenho:
+        linha_atual = None
+
+        
 
 def apagar_item ():
     global item_atual
@@ -136,10 +161,16 @@ def criar_interface():
     
     btn_imagem = tk.Button(tela, text="Checkbox", command=texto_checkbox)
     btn_imagem.pack(side="left")
+    
+    btn_caneta = tk.Button(tela, text="Modo Caneta", command=alternar_desenho)
+    btn_caneta.pack(side="left")
 
    
     canvas.bind("<Button-1>", iniciar_movimento)
     canvas.bind("<B1-Motion>", mover_item)
+    canvas.bind("<ButtonPress-1>", iniciar_linha)
+    canvas.bind("<B1-Motion>", desenhar_linha)
+    canvas.bind("<ButtonRelease-1>", finalizar_linha)
 
     tela.mainloop()
 
