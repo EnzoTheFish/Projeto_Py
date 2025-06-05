@@ -1,1 +1,1 @@
-# COLOCA README AI PO Q ISSO
+# Uma area de organizaçao de tarefas 
