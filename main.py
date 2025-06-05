@@ -23,8 +23,8 @@ def alternar_desenho ():
 def iniciar_linha (evento):
     global linha
     if desenho:
-        linha = canvas.create_line(evento.x, evento.y, evento.x, evento.y, fill="red", width=2, capstyle="round", smooth=True, tags="desenho")
-        acoes.append(("criar", linha))
+        linha = canvas.create_line(evento.x, evento.y, evento.x, evento.y, fill="red", width=2, capstyle="round", smooth=True, tags="desenho") 
+              
 
 def desenhar_linha (evento):
     global linha
@@ -37,8 +37,7 @@ def finalizar_linha(evento):
     global linha_atual
     if desenho:
         linha_atual = None
-
-        
+        acoes.append(("desenho", linha))
 
 def apagar_item ():
     global item_atual
@@ -131,6 +130,8 @@ def iniciar_movimento(evento):
         itens = canvas.find_closest(evento.x, evento.y)
         if itens:
             id_item = itens[0]
+            pos_antiga = canvas.coords(id_item)
+            acoes.append(("mover", id_item, pos_antiga))  
             for tarefa in tarefas:
                 if tarefa["caixa"] == id_item or tarefa["texto"] == id_item:
                     item_atual = tarefa["tag"]
@@ -144,6 +145,7 @@ def mover_item(evento):
             coords = canvas.coords(linha)
             coords.extend([evento.x, evento.y])
             canvas.coords(linha, *coords)
+            
      elif item_atual:
         if isinstance(item_atual, str):
             itens = canvas.find_withtag(item_atual)
@@ -163,16 +165,26 @@ def desfazer_acao(event=None):
         return
 
     acao = acoes.pop()
-
-    tipo, item = acao
+    tipo= acao[0]
 
     if tipo == "criar":
-        canvas.delete(item)
-        if item in imagens_carregadas:
-            del imagens_carregadas[item]
+        item_id = acao[1]
+        canvas.delete(item_id)
+        if item_id in imagens_carregadas:
+            del imagens_carregadas[item_id]
+
     elif tipo == "criar_grupo":
-        for i in item:
-            canvas.delete(i)          
+        for item_id in acao[1]:
+            canvas.delete(item_id)
+
+    elif tipo == "mover":
+        item_id = acao[1]
+        pos_antiga = acao[2]
+        canvas.coords(item_id, *pos_antiga)
+        
+    elif tipo == 'desenho':
+        linha = acao[1]
+        canvas.delete(linha)
 
 
 def criar_interface():
