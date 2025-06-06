@@ -13,6 +13,80 @@ tarefas = []
 desenho = False
 linha = None
 acoes = []
+itens_redimensionaveis = {}
+borda_redimensionamento = None
+item_redimensionando = None
+movendo_borda = False
+
+def iniciar_borda(event):
+    global movendo_borda
+    movendo_borda = True
+
+def parar_borda(event):
+    global movendo_borda
+    movendo_borda = False
+
+def movimento_borda(event):
+    global movendo_borda
+    if movendo_borda:
+        redimensionar_item(event)
+    else:
+        mover_item(event)
+
+
+def limpar_selecao():
+    global borda_redimensionamento, item_redimensionando
+    if borda_redimensionamento:
+        canvas.delete(borda_redimensionamento)
+        borda_redimensionamento = None
+        item_redimensionando = None
+
+def exibir_alca(item_id):
+    global borda_redimensionamento, item_redimensionando
+
+    if borda_redimensionamento:
+        canvas.delete(borda_redimensionamento)
+
+    bbox = canvas.bbox(item_id)
+    if bbox:
+        x1, y1, x2, y2 = bbox
+        borda_redimensionamento = canvas.create_rectangle(
+            x2 - 10, y2 - 10, x2, y2,
+            fill="blue", tags="alca"
+        )
+        item_redimensionando = item_id
+        
+def redimensionar_item(event):
+    global item_redimensionando, itens_redimensionaveis
+
+    if not item_redimensionando:
+        return
+
+    obj = itens_redimensionaveis[item_redimensionando]
+    bbox = canvas.bbox(item_redimensionando)
+    if not bbox:
+        return
+
+    x1, y1, _, _ = bbox
+    nova_largura = max(20, event.x - x1)
+    nova_altura = max(20, event.y - y1)
+
+    if obj["tipo"] == "imagem":
+        imagem = Image.open(obj["caminho"])
+        imagem = imagem.resize((nova_largura, nova_altura))
+        imagem_tk = ImageTk.PhotoImage(imagem)
+
+        canvas.itemconfig(item_redimensionando, image=imagem_tk)
+        itens_redimensionaveis[item_redimensionando]["imagem"] = imagem_tk
+        itens_redimensionaveis[item_redimensionando]["largura"] = nova_largura
+        itens_redimensionaveis[item_redimensionando]["altura"] = nova_altura
+
+    elif obj["tipo"] == "texto":
+        novo_tamanho = max(6, int(nova_altura / 1.5))
+        canvas.itemconfig(item_redimensionando, font=("Arial", novo_tamanho))
+        itens_redimensionaveis[item_redimensionando]["tamanho_fonte"] = novo_tamanho
+
+    exibir_alca(item_redimensionando)
 
 def alternar_desenho ():
     global desenho
@@ -59,6 +133,10 @@ def adicionar_tarefa(evento=None):
     nome= entrada.get()
     if nome:
      item = canvas.create_text(100, 100, text=nome, font=("Arial", 14), anchor="nw", tags="tarefa") 
+     itens_redimensionaveis[item]={
+         "tipo": "texto",
+         "tamanho_fonte": 14
+     }
      acoes.append(("criar", item))
      entrada.destroy()
      entrada = None
@@ -117,6 +195,13 @@ def adicionar_imagem():
     imagem_tk = ImageTk.PhotoImage(imagem)
 
     item = canvas.create_image(200, 200, image=imagem_tk, anchor="nw", tags="imagem")
+    itens_redimensionaveis[item] = {
+    "tipo": "imagem",
+    "imagem": imagem_tk,
+    "caminho": caminho,
+    "largura": 100,
+    "altura": 100
+}
     acoes.append(("criar", item))
     imagens_carregadas[item] = imagem_tk  
     return item
@@ -131,6 +216,11 @@ def iniciar_movimento(evento):
         if itens:
             id_item = itens[0]
             pos_antiga = canvas.coords(id_item)
+            acoes.append(("mover", id_item, pos_antiga))
+            if id_item in itens_redimensionaveis:
+                item_atual = id_item
+                exibir_alca(id_item)
+                return
             acoes.append(("mover", id_item, pos_antiga))  
             for tarefa in tarefas:
                 if tarefa["caixa"] == id_item or tarefa["texto"] == id_item:
@@ -159,6 +249,8 @@ def mover_item(evento):
                         canvas.move(item, dx, dy)
         else:
             canvas.coords(item_atual, evento.x, evento.y)
+            if item_atual in itens_redimensionaveis:
+             exibir_alca(item_atual)
             
 def desfazer_acao(event=None):
     if not acoes:
@@ -214,9 +306,15 @@ def criar_interface():
 
    
     canvas.bind("<Button-1>", iniciar_movimento)
-    canvas.bind("<B1-Motion>", mover_item)
     canvas.bind("<ButtonRelease-1>", lambda e: None if not desenho else finalizar_linha(e))
     tela.bind("<Control-z>", desfazer_acao)
+    canvas.bind("<B1-Motion>", movimento_borda)
+    canvas.tag_bind("alca", "<Button-1>", iniciar_borda)
+    canvas.tag_bind("alca", "<ButtonRelease-1>", parar_borda)
+    canvas.tag_bind("alca", "<Enter>", lambda e: canvas.config(cursor="bottom_right_corner"))
+    canvas.tag_bind("alca", "<Leave>", lambda e: canvas.config(cursor="arrow"))
+
+
 
     tela.mainloop()
 
