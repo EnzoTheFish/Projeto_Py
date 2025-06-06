@@ -21,6 +21,12 @@ movendo_borda = False
 cor_desenho = "red"
 modo_borracha = False
 
+def cancelar_entrada():
+    global entrada
+    if entrada:
+        entrada.destroy()
+        entrada = None
+
 def escolher_cor():
     global cor_desenho
     cor = colorchooser.askcolor(title="Escolha a cor")[1]
@@ -38,7 +44,8 @@ def ativar_borracha():
 def liberar_mouse(event=None):
     global movendo_borda
     movendo_borda = False
-    canvas.config(cursor="arrow")
+    if not desenho:
+     canvas.config(cursor="arrow")
     if desenho:
         finalizar_linha(event)
 
@@ -289,18 +296,18 @@ def desfazer_acao(event=None):
      grupo = acao[1]
      canvas.coords(grupo["caixa"], *grupo["posicoes"][grupo["caixa"]])
      canvas.coords(grupo["texto"], *grupo["posicoes"][grupo["texto"]])
+     
+    elif tipo == 'desenho':
+        linha = acao[1]
+        canvas.delete(linha)
 
 
     elif tipo == "mover":
      item_id = acao[1]
      pos_antiga = acao[2]
      canvas.coords(item_id, *pos_antiga)
-    if item_id in itens_redimensionaveis:
+     if item_id in itens_redimensionaveis:
         exibir_alca(item_id)
-        
-    elif tipo == 'desenho':
-        linha = acao[1]
-        canvas.delete(linha)
 
 
 def criar_interface():
@@ -341,6 +348,9 @@ def criar_interface():
     global btn_borracha
     btn_borracha = tk.Button(tela, text="Ativar Borracha", command=ativar_borracha)
     btn_borracha.pack(side="left")
+    
+    btn_cancelar = tk.Button(tela, text="Cancelar Entrada", command=cancelar_entrada)
+    btn_cancelar.pack(side="left")
     
 
 
