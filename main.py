@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import filedialog
 from PIL import Image, ImageTk
+from tkinter import colorchooser
 
 imagens_carregadas = {}
 
@@ -17,14 +18,33 @@ itens_redimensionaveis = {}
 borda_redimensionamento = None
 item_redimensionando = None
 movendo_borda = False
+cor_desenho = "red"
+modo_borracha = False
+
+def escolher_cor():
+    global cor_desenho
+    cor = colorchooser.askcolor(title="Escolha a cor")[1]
+    if cor:
+        cor_desenho = cor
+        if desenho:
+            canvas.config(cursor="pencil")
+        
+def ativar_borracha():
+    global modo_borracha
+    modo_borracha = not modo_borracha
+    texto = "Desativar Borracha" if modo_borracha else "Ativar Borracha"
+    btn_borracha.config(text=texto)
+
+def liberar_mouse(event=None):
+    global movendo_borda
+    movendo_borda = False
+    canvas.config(cursor="arrow")
+    if desenho:
+        finalizar_linha(event)
 
 def iniciar_borda(event):
     global movendo_borda
     movendo_borda = True
-
-def parar_borda(event):
-    global movendo_borda
-    movendo_borda = False
 
 def movimento_borda(event):
     global movendo_borda
@@ -32,24 +52,16 @@ def movimento_borda(event):
         redimensionar_item(event)
     else:
         mover_item(event)
-
-
-def limpar_selecao():
-    global borda_redimensionamento, item_redimensionando
-    if borda_redimensionamento:
-        canvas.delete(borda_redimensionamento)
-        borda_redimensionamento = None
-        item_redimensionando = None
-
+        
 def exibir_alca(item_id):
     global borda_redimensionamento, item_redimensionando
 
     if borda_redimensionamento:
         canvas.delete(borda_redimensionamento)
 
-    bbox = canvas.bbox(item_id)
-    if bbox:
-        x1, y1, x2, y2 = bbox
+    caixa = canvas.bbox(item_id)
+    if caixa:
+        x1, y1, x2, y2 = caixa
         borda_redimensionamento = canvas.create_rectangle(
             x2 - 10, y2 - 10, x2, y2,
             fill="blue", tags="alca"
@@ -63,14 +75,14 @@ def redimensionar_item(event):
         return
 
     obj = itens_redimensionaveis[item_redimensionando]
-    bbox = canvas.bbox(item_redimensionando)
-    if not bbox:
+    caixa = canvas.bbox(item_redimensionando)
+    if not caixa:
         return
 
-    x1, y1, _, _ = bbox
+    x1, y1, _, _ = caixa
     nova_largura = max(20, event.x - x1)
     nova_altura = max(20, event.y - y1)
-
+    
     if obj["tipo"] == "imagem":
         imagem = Image.open(obj["caminho"])
         imagem = imagem.resize((nova_largura, nova_altura))
@@ -97,7 +109,8 @@ def alternar_desenho ():
 def iniciar_linha (evento):
     global linha
     if desenho:
-        linha = canvas.create_line(evento.x, evento.y, evento.x, evento.y, fill="red", width=2, capstyle="round", smooth=True, tags="desenho") 
+        cor = "white" if modo_borracha else cor_desenho
+        linha = canvas.create_line(evento.x, evento.y, evento.x, evento.y, fill=cor, width=5, capstyle="round", smooth=True, tags="desenho")
               
 
 def desenhar_linha (evento):
@@ -158,7 +171,13 @@ def adicionar_tarefa_com_checkbox(evento=None):
 
         caixa = canvas.create_rectangle(x, y, x + 20, y + 20, outline="black", fill="white", tags=(tag_tarefa, "checkbox"))
         texto = canvas.create_text(x + 30, y, text=nome, font=("Arial", 14), anchor="nw", tags=(tag_tarefa, "tarefa"))
-        acoes.append(("criar_grupo", [caixa, texto]))
+        acoes.append(("criar_grupo",{
+        "caixa": caixa,
+        "texto": texto,
+        "posicoes": {
+            caixa: canvas.coords(caixa),
+            texto: canvas.coords(texto)}}
+            ))
 
         tarefas.append({
             "caixa": caixa,
@@ -209,7 +228,7 @@ def adicionar_imagem():
 def iniciar_movimento(evento):
      global item_atual, linha
      if desenho:
-        linha = canvas.create_line(evento.x, evento.y, evento.x, evento.y, fill="red", width=2, capstyle="round", smooth=True, tags="desenho")
+        iniciar_linha(evento)
         item_atual = None
      else:
         itens = canvas.find_closest(evento.x, evento.y)
@@ -265,14 +284,19 @@ def desfazer_acao(event=None):
         if item_id in imagens_carregadas:
             del imagens_carregadas[item_id]
 
+
     elif tipo == "criar_grupo":
-        for item_id in acao[1]:
-            canvas.delete(item_id)
+     grupo = acao[1]
+     canvas.coords(grupo["caixa"], *grupo["posicoes"][grupo["caixa"]])
+     canvas.coords(grupo["texto"], *grupo["posicoes"][grupo["texto"]])
+
 
     elif tipo == "mover":
-        item_id = acao[1]
-        pos_antiga = acao[2]
-        canvas.coords(item_id, *pos_antiga)
+     item_id = acao[1]
+     pos_antiga = acao[2]
+     canvas.coords(item_id, *pos_antiga)
+    if item_id in itens_redimensionaveis:
+        exibir_alca(item_id)
         
     elif tipo == 'desenho':
         linha = acao[1]
@@ -306,13 +330,18 @@ def criar_interface():
 
    
     canvas.bind("<Button-1>", iniciar_movimento)
-    canvas.bind("<ButtonRelease-1>", lambda e: None if not desenho else finalizar_linha(e))
     tela.bind("<Control-z>", desfazer_acao)
     canvas.bind("<B1-Motion>", movimento_borda)
     canvas.tag_bind("alca", "<Button-1>", iniciar_borda)
-    canvas.tag_bind("alca", "<ButtonRelease-1>", parar_borda)
+    canvas.bind("<ButtonRelease-1>", liberar_mouse)
     canvas.tag_bind("alca", "<Enter>", lambda e: canvas.config(cursor="bottom_right_corner"))
-    canvas.tag_bind("alca", "<Leave>", lambda e: canvas.config(cursor="arrow"))
+    btn_cor = tk.Button(tela, text="Escolher Cor", command=escolher_cor)
+    btn_cor.pack(side="left")
+    
+    global btn_borracha
+    btn_borracha = tk.Button(tela, text="Ativar Borracha", command=ativar_borracha)
+    btn_borracha.pack(side="left")
+    
 
 
 
